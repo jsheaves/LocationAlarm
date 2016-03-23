@@ -1,11 +1,24 @@
 package com.example.jsheaves.googlemapstestproject;
 
+import android.accessibilityservice.AccessibilityService;
+import android.annotation.TargetApi;
+import android.app.IntentService;
+import android.app.Notification;
+import android.app.NotificationManager;
+import android.app.PendingIntent;
 import android.content.Context;
+import android.content.Intent;
 import android.graphics.Color;
 import android.location.Location;
+import android.media.Ringtone;
+import android.media.RingtoneManager;
+import android.net.Uri;
+import android.os.Build;
 import android.os.Handler;
+import android.os.Vibrator;
 import android.support.v4.app.FragmentActivity;
 import android.os.Bundle;
+import android.support.v4.app.NotificationCompat;
 import android.view.View;
 import android.widget.Button;
 import android.widget.EditText;
@@ -26,6 +39,11 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
     EditText reminderInput;
     EditText radiusInput;
     Handler handler = new Handler();
+    LatLng setLocation;
+    Circle circle;
+    AccessibilityService context;
+    private static final int NOTE_ID = 100;
+    String getReminder;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -46,6 +64,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         public void onClick(View v)
         {
             try {
+                runInit();
                 runnable.run();
             }
             catch(Exception ex)
@@ -74,41 +93,41 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         mMap.getUiSettings().setZoomControlsEnabled(true);
         mMap.setMyLocationEnabled(true);
         mMap.setMapType(GoogleMap.MAP_TYPE_SATELLITE);
+
     }
 
     private Runnable runnable = new Runnable() {
         @Override
         public void run() {
-      /* do what you need to do */
-            runOrig();
-      /* and here comes the "trick" */
+            updateLocation();
+
             handler.postDelayed(this, 5000);
         }
     };
 
-    public void runOrig() {
+    public void runInit() {
 
         Integer intLoopControlVariable = 0;
-        String getReminder = reminderInput.getText().toString();
+        getReminder = reminderInput.getText().toString();
         Integer getRadius = Integer.parseInt(radiusInput.getText().toString());
 
         Location myLocation = mMap.getMyLocation();
         if (myLocation != null) {
-            //mMap.clear();
+            mMap.clear();
             double dLatitude = myLocation.getLatitude();
             double dLongitude = myLocation.getLongitude();
-            LatLng currentLocation = new LatLng(dLatitude, dLongitude);
-            Circle circle = mMap.addCircle(new CircleOptions()
-                    .center(currentLocation)
+            setLocation = new LatLng(dLatitude, dLongitude);
+            circle = mMap.addCircle(new CircleOptions()
+                    .center(setLocation)
                     .radius(getRadius)
                     .strokeColor(Color.RED)
                     .fillColor(0x5500ff00));
 
             mMap.addMarker(new MarkerOptions()
-                    .position(currentLocation)
+                    .position(setLocation)
                     .title(getReminder));
 
-            mMap.moveCamera(CameraUpdateFactory.newLatLng(currentLocation));
+            mMap.moveCamera(CameraUpdateFactory.newLatLng(setLocation));
 
             Context context = getApplicationContext();
             CharSequence text = "Your notifier has been successfully set!";
@@ -122,6 +141,64 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
             Toast toast = Toast.makeText(context, text, duration);
             toast.show();
         }
+
+    }
+
+    public void updateLocation()
+    {
+        Location myLocation = mMap.getMyLocation();
+        double dLatitude = myLocation.getLatitude();
+        double dLongitude = myLocation.getLongitude();
+        float[] distance = new float[2];
+
+        LatLng currentLocation = new LatLng(dLatitude, dLongitude);
+
+        Location.distanceBetween(currentLocation.latitude, currentLocation.longitude, circle.getCenter().latitude, circle.getCenter().longitude, distance);
+
+        if(distance[0] <= circle.getRadius()) {
+
+        }
+
+        else
+        {
+            Vibrator v = (Vibrator)getSystemService(Context.VIBRATOR_SERVICE);
+            v.vibrate(1000);
+
+            try {
+                Uri notification = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION);
+                Ringtone r = RingtoneManager.getRingtone(getApplicationContext(), notification);
+                r.play();
+
+                createNotification();
+
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+        }
+    }
+
+    public void createNotification() {
+        NotificationManager manager = (NotificationManager)getSystemService(Context.NOTIFICATION_SERVICE);
+        Intent launchIntent = new Intent(getApplicationContext(), MapsActivity.class);
+        PendingIntent contentIntent = PendingIntent.getActivity(getApplicationContext(), 0, launchIntent, 0);
+
+        NotificationCompat.Builder builder = new NotificationCompat.Builder(MapsActivity.this);
+        //Set notification information
+        builder.setSmallIcon(R.drawable.notification_icon)
+                .setTicker("Something Happened")
+                .setWhen(System.currentTimeMillis())
+                .setAutoCancel(true)
+                .setDefaults(Notification.DEFAULT_SOUND)
+                .setContentTitle("Ding!")
+                .setContentText("It's time to " + getReminder + "!")
+                .setContentIntent(contentIntent);
+
+        NotificationCompat.InboxStyle style = new NotificationCompat.InboxStyle(builder);
+        style.setSummaryText("Location Reminder");
+        style.addLine("It's time to " + getReminder + "!");
+
+        Notification note = style.build();
+        manager.notify(NOTE_ID, note);
     }
 }
 
