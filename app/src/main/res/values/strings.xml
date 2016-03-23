@@ -1,0 +1,7 @@
+<resources>
+    <string name="app_name">Maps Notifier</string>
+    <string name="title_activity_maps">Location Alarm</string>
+    <string name="setReminder">Set Reminder</string>
+    <string name="getReminderNameLabel">Enter a Reminder</string>
+    <string name="setRadiusSizeLabel">Enter a Radius</string>
+</resources>
